@@ -1144,7 +1144,658 @@ curl -X POST http://localhost:5000/api/auth/logout \
 
 ---
 
-## 📝 Notes for Postman
+## � Journal Endpoints
+
+### 1. Create Journal Entry
+
+**POST** `/journal`
+_Requires Authentication_
+
+**Request Body:**
+
+```json
+{
+  "title": "My Day",
+  "content": "Today was a good day. I felt happy and accomplished several tasks.",
+  "mood_score": 8,
+  "tags": ["happy", "productive"],
+  "entry_date": "2025-09-01",
+  "accessible_in_chat": true
+}
+```
+
+**Response:**
+
+```json
+{
+  "message": "Journal entry created successfully",
+  "entry": {
+    "entry_id": "uuid-here",
+    "user_id": "user-uuid",
+    "title": "My Day",
+    "content": "Today was a good day...",
+    "mood_score": 8,
+    "tags": ["happy", "productive"],
+    "accessible_in_chat": true,
+    "entry_date": "2025-09-01T00:00:00.000Z",
+    "created_at": "2025-09-01T10:00:00.000Z"
+  }
+}
+```
+
+---
+
+### 2. Get Journal Entries
+
+**GET** `/journal?page=1&limit=10&mood_min=5&mood_max=10&tag=happy&from_date=2025-08-01&to_date=2025-09-01`
+_Requires Authentication_
+
+**Query Parameters:**
+
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 10)
+- `mood_min` (optional): Minimum mood score filter
+- `mood_max` (optional): Maximum mood score filter
+- `tag` (optional): Filter by tag
+- `from_date` (optional): Start date filter (YYYY-MM-DD)
+- `to_date` (optional): End date filter (YYYY-MM-DD)
+
+**Response:**
+
+```json
+{
+  "entries": [
+    {
+      "entry_id": "uuid-here",
+      "user_id": "user-uuid",
+      "title": "My Day",
+      "content": "Today was a good day...",
+      "mood_score": 8,
+      "tags": ["happy", "productive"],
+      "accessible_in_chat": true,
+      "entry_date": "2025-09-01T00:00:00.000Z",
+      "created_at": "2025-09-01T10:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "current_page": 1,
+    "total_pages": 3,
+    "total_entries": 25,
+    "has_next": true,
+    "has_prev": false
+  }
+}
+```
+
+---
+
+### 3. Get Single Journal Entry
+
+**GET** `/journal/{entryId}`
+_Requires Authentication_
+
+**Response:**
+
+```json
+{
+  "entry": {
+    "entry_id": "uuid-here",
+    "user_id": "user-uuid",
+    "title": "My Day",
+    "content": "Today was a good day...",
+    "mood_score": 8,
+    "tags": ["happy", "productive"],
+    "accessible_in_chat": true,
+    "entry_date": "2025-09-01T00:00:00.000Z",
+    "created_at": "2025-09-01T10:00:00.000Z"
+  }
+}
+```
+
+---
+
+### 4. Update Journal Entry
+
+**PUT** `/journal/{entryId}`
+_Requires Authentication_
+
+**Request Body:**
+
+```json
+{
+  "title": "Updated Title",
+  "content": "Updated content...",
+  "mood_score": 9,
+  "tags": ["amazing", "grateful"],
+  "accessible_in_chat": false
+}
+```
+
+**Response:**
+
+```json
+{
+  "message": "Journal entry updated successfully",
+  "entry": {
+    "entry_id": "uuid-here",
+    "user_id": "user-uuid",
+    "title": "Updated Title",
+    "content": "Updated content...",
+    "mood_score": 9,
+    "tags": ["amazing", "grateful"],
+    "accessible_in_chat": false,
+    "entry_date": "2025-09-01T00:00:00.000Z",
+    "created_at": "2025-09-01T10:00:00.000Z"
+  }
+}
+```
+
+---
+
+### 5. Delete Journal Entry
+
+**DELETE** `/journal/{entryId}`
+_Requires Authentication_
+
+**Response:**
+
+```json
+{
+  "message": "Journal entry deleted successfully"
+}
+```
+
+---
+
+### 6. Get Mood Statistics from Journal
+
+**GET** `/journal/mood-stats?days=30`
+_Requires Authentication_
+
+**Query Parameters:**
+
+- `days` (optional): Number of days to analyze (default: 30)
+
+**Response:**
+
+```json
+{
+  "period_days": 30,
+  "average_mood": 7.5,
+  "min_mood": 3,
+  "max_mood": 10,
+  "entries_count": 15,
+  "mood_entries": [
+    {
+      "date": "2025-08-15T00:00:00.000Z",
+      "mood": 8
+    },
+    {
+      "date": "2025-08-16T00:00:00.000Z",
+      "mood": 6
+    }
+  ]
+}
+```
+
+---
+
+## 😊 Mood Tracking Endpoints
+
+### 1. Set Daily Mood
+
+**POST** `/mood`
+_Requires Authentication_
+
+**Request Body:**
+
+```json
+{
+  "mood_score": 8,
+  "energy_level": 7,
+  "anxiety_level": 3,
+  "sleep_quality": 9,
+  "notes": "Had a great day at work",
+  "activities": ["exercise", "meditation", "socializing"],
+  "date": "2025-09-01"
+}
+```
+
+**Response:**
+
+```json
+{
+  "message": "Mood updated successfully",
+  "mood_entry": {
+    "user_id": "user-uuid",
+    "date": "2025-09-01T00:00:00.000Z",
+    "mood_score": 8,
+    "energy_level": 7,
+    "anxiety_level": 3,
+    "sleep_quality": 9,
+    "notes": "Had a great day at work",
+    "activities": ["exercise", "meditation", "socializing"],
+    "created_at": "2025-09-01T10:00:00.000Z",
+    "updated_at": "2025-09-01T10:00:00.000Z"
+  }
+}
+```
+
+---
+
+### 2. Get Mood Entries
+
+**GET** `/mood?from_date=2025-08-01&to_date=2025-09-01&days=30&page=1&limit=50`
+_Requires Authentication_
+
+**Query Parameters:**
+
+- `from_date` (optional): Start date (YYYY-MM-DD)
+- `to_date` (optional): End date (YYYY-MM-DD)
+- `days` (optional): Number of days back from today (default: 30)
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 50)
+
+**Response:**
+
+```json
+{
+  "mood_entries": [
+    {
+      "user_id": "user-uuid",
+      "date": "2025-09-01T00:00:00.000Z",
+      "mood_score": 8,
+      "energy_level": 7,
+      "anxiety_level": 3,
+      "sleep_quality": 9,
+      "notes": "Had a great day at work",
+      "activities": ["exercise", "meditation", "socializing"],
+      "created_at": "2025-09-01T10:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "current_page": 1,
+    "total_pages": 1,
+    "total_entries": 15,
+    "has_next": false,
+    "has_prev": false
+  }
+}
+```
+
+---
+
+### 3. Get Today's Mood
+
+**GET** `/mood/today`
+_Requires Authentication_
+
+**Response:**
+
+```json
+{
+  "date": "2025-09-01T00:00:00.000Z",
+  "mood_entry": {
+    "user_id": "user-uuid",
+    "date": "2025-09-01T00:00:00.000Z",
+    "mood_score": 8,
+    "energy_level": 7,
+    "anxiety_level": 3,
+    "sleep_quality": 9,
+    "notes": "Had a great day at work",
+    "activities": ["exercise", "meditation", "socializing"],
+    "created_at": "2025-09-01T10:00:00.000Z"
+  },
+  "has_entry": true
+}
+```
+
+---
+
+### 4. Get Mood Insights
+
+**GET** `/mood/insights?days=30`
+_Requires Authentication_
+
+**Query Parameters:**
+
+- `days` (optional): Number of days to analyze (default: 30)
+
+**Response:**
+
+```json
+{
+  "period_days": 30,
+  "insights": {
+    "average_mood": 7.2,
+    "mood_range": {
+      "min": 3,
+      "max": 10
+    },
+    "average_energy": 6.8,
+    "average_anxiety": 4.2,
+    "average_sleep": 7.5,
+    "entries_count": 25,
+    "trend": "improving",
+    "top_activities_on_good_days": [
+      {
+        "activity": "exercise",
+        "count": 8
+      },
+      {
+        "activity": "meditation",
+        "count": 6
+      }
+    ],
+    "consistency_score": 83
+  }
+}
+```
+
+---
+
+### 5. Delete Mood Entry
+
+**DELETE** `/mood/{date}`
+_Requires Authentication_
+
+**URL Parameters:**
+
+- `date`: Date in YYYY-MM-DD format
+
+**Response:**
+
+```json
+{
+  "message": "Mood entry deleted successfully"
+}
+```
+
+---
+
+## 💬 Conversation/Chat with AI Endpoints
+
+### 1. Get Available AI Types
+
+**GET** `/conversations/ai-types`
+_Requires Authentication_
+
+**Response:**
+
+```json
+{
+  "ai_types": [
+    {
+      "id": "supportive",
+      "name": "Supportive AI",
+      "description": "A caring and encouraging AI therapist"
+    },
+    {
+      "id": "analytical",
+      "name": "Analytical AI",
+      "description": "A logical and structured AI therapist"
+    },
+    {
+      "id": "creative",
+      "name": "Creative AI",
+      "description": "A creative and expressive AI therapist"
+    },
+    {
+      "id": "jung",
+      "name": "Jungian AI",
+      "description": "An AI based on Carl Jung's analytical psychology"
+    },
+    {
+      "id": "cbt",
+      "name": "CBT AI",
+      "description": "An AI specializing in Cognitive Behavioral Therapy"
+    }
+  ]
+}
+```
+
+---
+
+### 2. Create New Conversation
+
+**POST** `/conversations`
+_Requires Authentication_
+
+**Request Body:**
+
+```json
+{
+  "ai_type": "supportive",
+  "title": "Chat about my anxiety",
+  "journal_access_enabled": true
+}
+```
+
+**Response:**
+
+```json
+{
+  "message": "Conversation created successfully",
+  "conversation": {
+    "conversation_id": "uuid-here",
+    "user_id": "user-uuid",
+    "title": "Chat about my anxiety",
+    "type": "therapy",
+    "journal_access_enabled": true,
+    "created_at": "2025-09-01T10:00:00.000Z",
+    "last_message_at": "2025-09-01T10:00:00.000Z",
+    "ai_type": "supportive",
+    "ai_info": {
+      "name": "Supportive AI",
+      "description": "A caring and encouraging AI therapist"
+    }
+  },
+  "initial_message": {
+    "message_id": "uuid-here",
+    "conversation_id": "conv-uuid",
+    "user_id": "user-uuid",
+    "sender": "ai",
+    "content": "Hello! I'm your Supportive AI. A caring and encouraging AI therapist. How are you feeling today?",
+    "created_at": "2025-09-01T10:00:00.000Z"
+  }
+}
+```
+
+---
+
+### 3. Get All Conversations
+
+**GET** `/conversations?page=1&limit=10`
+_Requires Authentication_
+
+**Query Parameters:**
+
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 10)
+
+**Response:**
+
+```json
+{
+  "conversations": [
+    {
+      "conversation_id": "uuid-here",
+      "user_id": "user-uuid",
+      "title": "Chat about my anxiety",
+      "type": "therapy",
+      "journal_access_enabled": true,
+      "created_at": "2025-09-01T10:00:00.000Z",
+      "last_message_at": "2025-09-01T12:00:00.000Z",
+      "last_message": {
+        "message_id": "uuid-here",
+        "sender": "ai",
+        "content": "I understand. Can you tell me more about that?",
+        "created_at": "2025-09-01T12:00:00.000Z"
+      }
+    }
+  ],
+  "pagination": {
+    "current_page": 1,
+    "total_pages": 2,
+    "total_conversations": 15,
+    "has_next": true,
+    "has_prev": false
+  }
+}
+```
+
+---
+
+### 4. Get Single Conversation with Messages
+
+**GET** `/conversations/{conversationId}?page=1&limit=50`
+_Requires Authentication_
+
+**Query Parameters:**
+
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 50)
+
+**Response:**
+
+```json
+{
+  "conversation": {
+    "conversation_id": "uuid-here",
+    "user_id": "user-uuid",
+    "title": "Chat about my anxiety",
+    "type": "therapy",
+    "journal_access_enabled": true,
+    "created_at": "2025-09-01T10:00:00.000Z",
+    "last_message_at": "2025-09-01T12:00:00.000Z"
+  },
+  "messages": [
+    {
+      "message_id": "uuid-here",
+      "conversation_id": "conv-uuid",
+      "user_id": "user-uuid",
+      "sender": "ai",
+      "content": "Hello! How are you feeling today?",
+      "referenced_journal_entries": [],
+      "created_at": "2025-09-01T10:00:00.000Z"
+    },
+    {
+      "message_id": "uuid-here",
+      "conversation_id": "conv-uuid",
+      "user_id": "user-uuid",
+      "sender": "user",
+      "content": "I'm feeling anxious about work",
+      "created_at": "2025-09-01T10:05:00.000Z"
+    }
+  ],
+  "pagination": {
+    "current_page": 1,
+    "total_pages": 1,
+    "total_messages": 2,
+    "has_next": false,
+    "has_prev": false
+  }
+}
+```
+
+---
+
+### 5. Send Message in Conversation
+
+**POST** `/conversations/{conversationId}/messages`
+_Requires Authentication_
+
+**Request Body:**
+
+```json
+{
+  "content": "I'm feeling really anxious about my upcoming presentation at work."
+}
+```
+
+**Response:**
+
+```json
+{
+  "message": "Messages sent successfully",
+  "user_message": {
+    "message_id": "uuid-here",
+    "conversation_id": "conv-uuid",
+    "user_id": "user-uuid",
+    "sender": "user",
+    "content": "I'm feeling really anxious about my upcoming presentation at work.",
+    "created_at": "2025-09-01T10:05:00.000Z"
+  },
+  "ai_response": {
+    "message_id": "uuid-here",
+    "conversation_id": "conv-uuid",
+    "user_id": "user-uuid",
+    "sender": "ai",
+    "content": "I hear that you're feeling anxious about your presentation. Those feelings are valid...",
+    "referenced_journal_entries": ["journal-entry-uuid"],
+    "created_at": "2025-09-01T10:05:30.000Z"
+  }
+}
+```
+
+---
+
+### 6. Delete Conversation
+
+**DELETE** `/conversations/{conversationId}`
+_Requires Authentication_
+
+**Response:**
+
+```json
+{
+  "message": "Conversation deleted successfully"
+}
+```
+
+---
+
+## 📊 Additional Notes
+
+### AI Response System
+
+The AI response system is powered by **Google Gemini AI** and includes:
+
+- **Real AI Integration**: Uses Google Gemini Pro model for intelligent, contextual responses
+- **Multiple AI personalities**: 
+  - **Supportive AI**: Warm, encouraging, focused on emotional support
+  - **Analytical AI**: Logical, structured, helps analyze thoughts and patterns  
+  - **Creative AI**: Uses metaphors, storytelling, and creative approaches
+  - **Jungian AI**: Based on Carl Jung's analytical psychology and archetypes
+  - **CBT AI**: Specializes in Cognitive Behavioral Therapy techniques
+- **Context awareness**: AI can reference recent journal entries and conversation history
+- **Crisis detection**: Automatically detects crisis language and provides appropriate resources
+- **Therapeutic approach**: Responses follow mental health best practices with professional boundaries
+- **Fallback system**: Graceful degradation if AI service is unavailable
+- **Conversation memory**: Maintains context within conversations for coherent dialogue
+
+**Setup Requirements:**
+- Obtain Google Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+- Add `GEMINI_API_KEY=your-api-key` to your `.env` file
+- System automatically falls back to predefined responses if API key is missing
+
+### Mood Tracking Features
+
+- **Daily tracking**: One mood entry per day with multiple metrics
+- **Rich insights**: Trends, patterns, and activity correlations
+- **Flexibility**: Track mood, energy, anxiety, sleep quality
+- **Activity correlation**: See which activities correlate with better moods
+
+### Journal Integration
+
+- **AI accessibility**: Choose which entries AI can reference
+- **Mood correlation**: Link journal entries with mood scores
+- **Rich filtering**: Search by mood, tags, dates
+- **Privacy controls**: Control what information is shared with AI
+
+---
+
+## �📝 Notes for Postman
 
 1. **Cookie Handling**:
 
