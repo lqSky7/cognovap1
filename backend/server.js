@@ -24,6 +24,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/users', require('./routes/users'));
 
 app.get('/', (req, res) => {
   res.send('Cognova P1 Backend');
