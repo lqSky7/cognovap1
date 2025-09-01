@@ -1,3 +1,5 @@
+#system specific 
+.DS_Store 
 # Logs
 logs
 *.log
