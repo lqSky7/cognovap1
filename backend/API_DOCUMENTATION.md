@@ -543,6 +543,11 @@ FIREBASE_CLIENT_X509_CERT_URL=your-client-cert-url
    - Always set `Content-Type: application/json` for POST/PUT requests
    - No need to manually set Authorization headers (cookies handle this)
 
+5. **Stream Management Testing**:
+   - Test `/conversations/streams/active` to check active streams
+   - Use stream cancellation during long responses  
+   - **Important**: Route order matters - `/streams/active` must come before `/:conversationId` routes in Express router
+
 ```bash
 curl -X POST http://localhost:5000/api/auth/register \
   -H "Content-Type: application/json" \
@@ -1819,7 +1824,76 @@ eventSource.onmessage = function (event) {
 
 ---
 
-### 6. Delete Conversation
+### 6. Cancel Stream
+
+**DELETE** `/conversations/{conversationId}/stream`
+_Requires Authentication_
+
+**Description:** Cancel an active streaming response for a specific conversation.
+
+**Response:**
+
+```json
+{
+  "message": "Stream cancelled successfully",
+  "message_id": "ai-message-uuid-here"
+}
+```
+
+**Error Responses:**
+
+```json
+{
+  "message": "No active stream found for this conversation"
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X DELETE http://localhost:5003/api/conversations/your-conversation-id/stream \
+  -b cookies.txt
+```
+```
+
+---
+
+### 7. Get Active Streams
+
+**GET** `/conversations/streams/active`
+_Requires Authentication_
+
+**Description:** Get information about currently active streaming sessions for the authenticated user.
+
+**⚠️ Important:** This endpoint must be accessed before any conversation-specific routes due to Express router matching order.
+
+**Response:**
+
+```json
+{
+  "active_streams": [
+    {
+      "conversation_id": "conv-uuid-here",
+      "message_id": "msg-uuid-here",
+      "start_time": "2025-09-01T17:30:00.000Z",
+      "duration_ms": 5432
+    }
+  ],
+  "total_active": 1
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X GET http://localhost:5003/api/conversations/streams/active \
+  -b cookies.txt
+```
+```
+
+---
+
+### 8. Delete Conversation
 
 **DELETE** `/conversations/{conversationId}`
 _Requires Authentication_
@@ -1844,9 +1918,11 @@ The AI response system is powered by **Google Gemini AI** with **real-time strea
 
 - **Instant user message save**: User messages are saved immediately, no waiting
 - **Streaming AI responses**: AI responses stream in real-time using Server-Sent Events (SSE)
+- **Stream cancellation**: Users can cancel active streaming responses
 - **Two endpoints available**:
   - `/messages` - Immediate response (AI generated in background)
   - `/stream` - Real-time streaming response (like ChatGPT)
+- **Active stream monitoring**: Track and manage ongoing streaming sessions
 
 **🤖 AI Capabilities:**
 
@@ -1870,6 +1946,8 @@ The AI response system is powered by **Google Gemini AI** with **real-time strea
 - **Automatic message persistence** - all responses saved to database
 - **Error handling** with graceful fallbacks
 - **Crisis intervention** with immediate specialized responses
+- **Stream cancellation** - Users can stop active streams
+- **Route ordering** - Stream management routes positioned before conversation ID routes to prevent conflicts
 
 **📱 Frontend Integration:**
 

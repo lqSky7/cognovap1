@@ -391,6 +391,9 @@ async function generateAndSaveAIResponse(userMessage, conversation, user_id, con
   }
 }
 
+// Store active streams for cancellation
+const activeStreams = new Map();
+
 // Stream AI response using Server-Sent Events
 const streamAIResponse = async (req, res) => {
   try {
@@ -411,6 +414,17 @@ const streamAIResponse = async (req, res) => {
       return res.status(404).json({ message: 'Conversation not found' });
     }
 
+    const ai_message_id = uuidv4();
+    
+    // Store this stream for potential cancellation
+    const streamKey = `${user_id}:${conversationId}`;
+    activeStreams.set(streamKey, {
+      response: res,
+      messageId: ai_message_id,
+      cancelled: false,
+      startTime: new Date()
+    });
+
     // Set up Server-Sent Events
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -420,7 +434,6 @@ const streamAIResponse = async (req, res) => {
       'Access-Control-Allow-Headers': 'Cache-Control'
     });
 
-    const ai_message_id = uuidv4();
     let accumulatedContent = '';
 
     // Send initial message with ID
@@ -430,7 +443,24 @@ const streamAIResponse = async (req, res) => {
       timestamp: new Date().toISOString()
     })}\n\n`);
 
+    // Clean up on client disconnect
+    req.on('close', () => {
+      console.log('Client disconnected from stream');
+      const streamInfo = activeStreams.get(streamKey);
+      if (streamInfo) {
+        streamInfo.cancelled = true;
+        activeStreams.delete(streamKey);
+      }
+    });
+
     try {
+      // Check if stream was cancelled before starting
+      const streamInfo = activeStreams.get(streamKey);
+      if (streamInfo && streamInfo.cancelled) {
+        res.end();
+        return;
+      }
+
       // Check for crisis first
       const isCrisis = geminiService.detectCrisis(userMessage);
       if (isCrisis) {
@@ -444,6 +474,7 @@ const streamAIResponse = async (req, res) => {
           crisis_detected: true
         })}\n\n`);
         
+        activeStreams.delete(streamKey);
         res.end();
         return;
       }
@@ -458,6 +489,13 @@ const streamAIResponse = async (req, res) => {
 
       // Stream the response chunks
       for await (const chunk of streamingResponse) {
+        // Check if stream was cancelled
+        const currentStreamInfo = activeStreams.get(streamKey);
+        if (!currentStreamInfo || currentStreamInfo.cancelled) {
+          console.log('Stream cancelled, stopping iteration');
+          break;
+        }
+
         try {
           const text = chunk.text();
           if (text) {
@@ -476,47 +514,141 @@ const streamAIResponse = async (req, res) => {
         }
       }
 
-      // Save the complete message to database
-      const aiMessage = new Message({
-        message_id: ai_message_id,
-        conversation_id: conversationId,
-        user_id,
-        sender: 'ai',
-        content: accumulatedContent,
-        referenced_journal_entries: [] // Could be enhanced to include journal refs
-      });
+      // Check if stream was cancelled before saving
+      const finalStreamInfo = activeStreams.get(streamKey);
+      if (finalStreamInfo && !finalStreamInfo.cancelled && accumulatedContent.trim()) {
+        // Save the complete message to database
+        const aiMessage = new Message({
+          message_id: ai_message_id,
+          conversation_id: conversationId,
+          user_id,
+          sender: 'ai',
+          content: accumulatedContent,
+          referenced_journal_entries: [] // Could be enhanced to include journal refs
+        });
 
-      await aiMessage.save();
+        await aiMessage.save();
 
-      // Send completion signal
-      res.write(`data: ${JSON.stringify({
-        type: 'complete',
-        message_id: ai_message_id,
-        final_content: accumulatedContent,
-        saved: true
-      })}\n\n`);
+        // Send completion signal
+        res.write(`data: ${JSON.stringify({
+          type: 'complete',
+          message_id: ai_message_id,
+          final_content: accumulatedContent,
+          saved: true
+        })}\n\n`);
+      } else if (finalStreamInfo && finalStreamInfo.cancelled) {
+        // Send cancellation signal
+        res.write(`data: ${JSON.stringify({
+          type: 'cancelled',
+          message_id: ai_message_id,
+          partial_content: accumulatedContent,
+          saved: false
+        })}\n\n`);
+      }
 
     } catch (streamError) {
       console.error('Streaming error:', streamError);
       
-      // Try fallback response
-      const fallbackResponse = geminiService.getFallbackResponse(userMessage);
-      accumulatedContent = fallbackResponse.content;
-      
-      res.write(`data: ${JSON.stringify({
-        type: 'complete',
-        message_id: ai_message_id,
-        final_content: accumulatedContent,
-        saved: false,
-        fallback: true,
-        error: 'Used fallback response'
-      })}\n\n`);
+      // Check if stream is still active before sending fallback
+      const streamInfo = activeStreams.get(streamKey);
+      if (streamInfo && !streamInfo.cancelled) {
+        // Try fallback response
+        const fallbackResponse = geminiService.getFallbackResponse(userMessage);
+        accumulatedContent = fallbackResponse.content;
+        
+        res.write(`data: ${JSON.stringify({
+          type: 'complete',
+          message_id: ai_message_id,
+          final_content: accumulatedContent,
+          saved: false,
+          fallback: true,
+          error: 'Used fallback response'
+        })}\n\n`);
+      }
     }
 
+    // Clean up
+    activeStreams.delete(streamKey);
     res.end();
 
   } catch (error) {
     console.error('Stream setup error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ message: 'Server error' });
+    }
+  }
+};
+
+// Cancel an active stream
+const cancelStream = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const user_id = req.user.user_id;
+
+    const streamKey = `${user_id}:${conversationId}`;
+    const streamInfo = activeStreams.get(streamKey);
+
+    if (!streamInfo) {
+      return res.status(404).json({ 
+        message: 'No active stream found for this conversation' 
+      });
+    }
+
+    // Mark stream as cancelled
+    streamInfo.cancelled = true;
+    
+    // Try to close the response if it's still writable
+    if (streamInfo.response && !streamInfo.response.destroyed) {
+      try {
+        streamInfo.response.write(`data: ${JSON.stringify({
+          type: 'cancelled',
+          message_id: streamInfo.messageId,
+          timestamp: new Date().toISOString()
+        })}\n\n`);
+        streamInfo.response.end();
+      } catch (writeError) {
+        console.error('Error writing cancellation to stream:', writeError);
+      }
+    }
+
+    // Remove from active streams
+    activeStreams.delete(streamKey);
+
+    res.json({ 
+      message: 'Stream cancelled successfully',
+      message_id: streamInfo.messageId
+    });
+
+  } catch (error) {
+    console.error('Cancel stream error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Get active streams (for debugging/monitoring)
+const getActiveStreams = async (req, res) => {
+  try {
+    const user_id = req.user.user_id;
+    const userStreams = [];
+
+    for (const [key, streamInfo] of activeStreams.entries()) {
+      if (key.startsWith(`${user_id}:`)) {
+        userStreams.push({
+          conversation_id: key.split(':')[1],
+          message_id: streamInfo.messageId,
+          start_time: streamInfo.startTime,
+          duration_ms: Date.now() - streamInfo.startTime.getTime()
+        });
+      }
+    }
+
+    res.json({ 
+      active_streams: userStreams,
+      total_active: userStreams.length
+    });
+
+  } catch (error) {
+    console.error('Get active streams error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -527,6 +659,8 @@ module.exports = {
   getConversation,
   sendMessage,
   streamAIResponse,
+  cancelStream,
+  getActiveStreams,
   deleteConversation,
   getAITypes
 };
