@@ -18,5 +18,6 @@ router.delete('/:conversationId', conversationController.deleteConversation);
 
 // Messages
 router.post('/:conversationId/messages', conversationController.sendMessage);
+router.post('/:conversationId/stream', conversationController.streamAIResponse);
 
 module.exports = router;

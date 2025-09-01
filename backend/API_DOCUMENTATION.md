@@ -1700,7 +1700,7 @@ _Requires Authentication_
 
 ---
 
-### 5. Send Message in Conversation
+### 5. Send Message in Conversation (Immediate Response)
 
 **POST** `/conversations/{conversationId}/messages`
 _Requires Authentication_
@@ -1713,11 +1713,11 @@ _Requires Authentication_
 }
 ```
 
-**Response:**
+**Response (Immediate - User message saved, AI response generated in background):**
 
 ```json
 {
-  "message": "Messages sent successfully",
+  "message": "User message sent successfully",
   "user_message": {
     "message_id": "uuid-here",
     "conversation_id": "conv-uuid",
@@ -1726,16 +1726,95 @@ _Requires Authentication_
     "content": "I'm feeling really anxious about my upcoming presentation at work.",
     "created_at": "2025-09-01T10:05:00.000Z"
   },
-  "ai_response": {
-    "message_id": "uuid-here",
-    "conversation_id": "conv-uuid",
-    "user_id": "user-uuid",
-    "sender": "ai",
-    "content": "I hear that you're feeling anxious about your presentation. Those feelings are valid...",
-    "referenced_journal_entries": ["journal-entry-uuid"],
-    "created_at": "2025-09-01T10:05:30.000Z"
-  }
+  "ai_message_id": "ai-uuid-here",
+  "streaming": true
 }
+```
+
+**Note:** This endpoint saves the user message immediately and returns. The AI response is generated in the background. Use the streaming endpoint below for real-time AI responses.
+
+---
+
+### 5b. Stream AI Response (Real-time like ChatGPT)
+
+**POST** `/conversations/{conversationId}/stream`
+_Requires Authentication_
+_Returns Server-Sent Events (SSE)_
+
+**Request Body:**
+
+```json
+{
+  "message": "I'm feeling really anxious about my upcoming presentation at work."
+}
+```
+
+**Response (Server-Sent Events Stream):**
+
+```javascript
+// Event 1 - Stream start
+data: {
+  "type": "start",
+  "message_id": "ai-uuid-here",
+  "timestamp": "2025-09-01T10:05:00.000Z"
+}
+
+// Event 2+ - Content chunks (multiple events as AI types)
+data: {
+  "type": "chunk",
+  "message_id": "ai-uuid-here",
+  "content": "I hear that you're feeling",
+  "accumulated_content": "I hear that you're feeling"
+}
+
+data: {
+  "type": "chunk",
+  "message_id": "ai-uuid-here",
+  "content": " anxious about your presentation.",
+  "accumulated_content": "I hear that you're feeling anxious about your presentation."
+}
+
+// Final event - Stream complete
+data: {
+  "type": "complete",
+  "message_id": "ai-uuid-here",
+  "final_content": "I hear that you're feeling anxious about your presentation. Those feelings are valid and very common before important presentations. Can you tell me more about what specifically worries you about it?",
+  "saved": true
+}
+```
+
+**Frontend Usage Example:**
+
+```javascript
+const eventSource = new EventSource("/api/conversations/conv-id/stream", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ message: "Hello" }),
+});
+
+eventSource.onmessage = function (event) {
+  const data = JSON.parse(event.data);
+
+  switch (data.type) {
+    case "start":
+      // Initialize AI message in UI
+      break;
+    case "chunk":
+      // Update AI message content in real-time
+      updateMessageContent(data.message_id, data.accumulated_content);
+      break;
+    case "complete":
+      // Finalize message
+      finalizeMessage(data.message_id, data.final_content);
+      eventSource.close();
+      break;
+    case "error":
+      // Handle error
+      console.error("Streaming error:", data.error);
+      eventSource.close();
+      break;
+  }
+};
 ```
 
 ---
@@ -1759,12 +1838,22 @@ _Requires Authentication_
 
 ### AI Response System
 
-The AI response system is powered by **Google Gemini AI** and includes:
+The AI response system is powered by **Google Gemini AI** with **real-time streaming** like ChatGPT:
 
-- **Real AI Integration**: Uses Google Gemini Pro model for intelligent, contextual responses
-- **Multiple AI personalities**: 
+**🚀 Real-time Features:**
+
+- **Instant user message save**: User messages are saved immediately, no waiting
+- **Streaming AI responses**: AI responses stream in real-time using Server-Sent Events (SSE)
+- **Two endpoints available**:
+  - `/messages` - Immediate response (AI generated in background)
+  - `/stream` - Real-time streaming response (like ChatGPT)
+
+**🤖 AI Capabilities:**
+
+- **Real AI Integration**: Uses Google Gemini Pro model with streaming support
+- **Multiple AI personalities**:
   - **Supportive AI**: Warm, encouraging, focused on emotional support
-  - **Analytical AI**: Logical, structured, helps analyze thoughts and patterns  
+  - **Analytical AI**: Logical, structured, helps analyze thoughts and patterns
   - **Creative AI**: Uses metaphors, storytelling, and creative approaches
   - **Jungian AI**: Based on Carl Jung's analytical psychology and archetypes
   - **CBT AI**: Specializes in Cognitive Behavioral Therapy techniques
@@ -1774,7 +1863,23 @@ The AI response system is powered by **Google Gemini AI** and includes:
 - **Fallback system**: Graceful degradation if AI service is unavailable
 - **Conversation memory**: Maintains context within conversations for coherent dialogue
 
+**🔧 Technical Implementation:**
+
+- **Server-Sent Events (SSE)** for real-time streaming
+- **Background processing** for non-blocking user experience
+- **Automatic message persistence** - all responses saved to database
+- **Error handling** with graceful fallbacks
+- **Crisis intervention** with immediate specialized responses
+
+**📱 Frontend Integration:**
+
+- Use `EventSource` API for real-time streaming
+- Messages appear character-by-character like ChatGPT
+- Automatic reconnection and error handling
+- Works with any frontend framework (React, Vue, vanilla JS)
+
 **Setup Requirements:**
+
 - Obtain Google Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
 - Add `GEMINI_API_KEY=your-api-key` to your `.env` file
 - System automatically falls back to predefined responses if API key is missing

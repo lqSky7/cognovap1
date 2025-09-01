@@ -199,7 +199,7 @@ const sendMessage = async (req, res) => {
       return res.status(404).json({ message: 'Conversation not found' });
     }
 
-    // Create user message
+    // Create user message first
     const message_id = uuidv4();
     const userMessage = new Message({
       message_id,
@@ -215,7 +215,7 @@ const sendMessage = async (req, res) => {
     conversation.last_message_at = new Date();
     await conversation.save();
 
-    // Check for crisis indicators
+    // Check for crisis indicators first
     const isCrisis = geminiService.detectCrisis(content);
     if (isCrisis) {
       const crisisResponse = geminiService.getCrisisResponse();
@@ -240,26 +240,17 @@ const sendMessage = async (req, res) => {
       });
     }
 
-    // Generate AI response using Gemini
-    const aiResponse = await generateAIResponse(content, conversation, user_id);
-    
-    const ai_message_id = uuidv4();
-    const aiMessage = new Message({
-      message_id: ai_message_id,
-      conversation_id: conversationId,
-      user_id,
-      sender: 'ai',
-      content: aiResponse.content,
-      referenced_journal_entries: aiResponse.referencedEntries || []
-    });
-
-    await aiMessage.save();
-
+    // Return user message immediately
     res.json({
-      message: 'Messages sent successfully',
+      message: 'User message sent successfully',
       user_message: userMessage,
-      ai_response: aiMessage
+      ai_message_id: uuidv4(), // Pre-generate AI message ID for frontend
+      streaming: true
     });
+
+    // Generate AI response in background (don't await)
+    generateAndSaveAIResponse(content, conversation, user_id, conversationId);
+
   } catch (error) {
     console.error('Send message error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -363,11 +354,179 @@ async function generateAIResponse(userMessage, conversation, user_id) {
   }
 }
 
+// Background function to generate and save AI response
+async function generateAndSaveAIResponse(userMessage, conversation, user_id, conversationId) {
+  try {
+    const aiResponse = await generateAIResponse(userMessage, conversation, user_id);
+    
+    const ai_message_id = uuidv4();
+    const aiMessage = new Message({
+      message_id: ai_message_id,
+      conversation_id: conversationId,
+      user_id,
+      sender: 'ai',
+      content: aiResponse.content,
+      referenced_journal_entries: aiResponse.referencedEntries || []
+    });
+
+    await aiMessage.save();
+    
+    // Here you could emit to WebSocket or SSE if implemented
+    console.log(`AI response generated for conversation ${conversationId}`);
+    
+  } catch (error) {
+    console.error('Background AI response generation error:', error);
+    
+    // Save error response
+    const ai_message_id = uuidv4();
+    const errorMessage = new Message({
+      message_id: ai_message_id,
+      conversation_id: conversationId,
+      user_id,
+      sender: 'ai',
+      content: "I apologize, but I'm having trouble generating a response right now. Please try again in a moment."
+    });
+
+    await errorMessage.save();
+  }
+}
+
+// Stream AI response using Server-Sent Events
+const streamAIResponse = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { message: userMessage } = req.body;
+    const user_id = req.user.user_id;
+
+    if (!userMessage) {
+      return res.status(400).json({ message: 'Message is required' });
+    }
+
+    const conversation = await Conversation.findOne({ 
+      conversation_id: conversationId, 
+      user_id 
+    });
+    
+    if (!conversation) {
+      return res.status(404).json({ message: 'Conversation not found' });
+    }
+
+    // Set up Server-Sent Events
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Cache-Control'
+    });
+
+    const ai_message_id = uuidv4();
+    let accumulatedContent = '';
+
+    // Send initial message with ID
+    res.write(`data: ${JSON.stringify({
+      type: 'start',
+      message_id: ai_message_id,
+      timestamp: new Date().toISOString()
+    })}\n\n`);
+
+    try {
+      // Check for crisis first
+      const isCrisis = geminiService.detectCrisis(userMessage);
+      if (isCrisis) {
+        const crisisResponse = geminiService.getCrisisResponse();
+        
+        res.write(`data: ${JSON.stringify({
+          type: 'complete',
+          message_id: ai_message_id,
+          final_content: crisisResponse.content,
+          saved: false,
+          crisis_detected: true
+        })}\n\n`);
+        
+        res.end();
+        return;
+      }
+
+      // Get streaming response from Gemini
+      const streamingResponse = await geminiService.generateStreamingResponse(
+        userMessage, 
+        conversation.ai_therapist_id || 'supportive',
+        user_id,
+        conversationId
+      );
+
+      // Stream the response chunks
+      for await (const chunk of streamingResponse) {
+        try {
+          const text = chunk.text();
+          if (text) {
+            accumulatedContent += text;
+            
+            res.write(`data: ${JSON.stringify({
+              type: 'chunk',
+              message_id: ai_message_id,
+              content: text,
+              accumulated_content: accumulatedContent
+            })}\n\n`);
+          }
+        } catch (chunkError) {
+          console.error('Error processing chunk:', chunkError);
+          // Continue with next chunk
+        }
+      }
+
+      // Save the complete message to database
+      const aiMessage = new Message({
+        message_id: ai_message_id,
+        conversation_id: conversationId,
+        user_id,
+        sender: 'ai',
+        content: accumulatedContent,
+        referenced_journal_entries: [] // Could be enhanced to include journal refs
+      });
+
+      await aiMessage.save();
+
+      // Send completion signal
+      res.write(`data: ${JSON.stringify({
+        type: 'complete',
+        message_id: ai_message_id,
+        final_content: accumulatedContent,
+        saved: true
+      })}\n\n`);
+
+    } catch (streamError) {
+      console.error('Streaming error:', streamError);
+      
+      // Try fallback response
+      const fallbackResponse = geminiService.getFallbackResponse(userMessage);
+      accumulatedContent = fallbackResponse.content;
+      
+      res.write(`data: ${JSON.stringify({
+        type: 'complete',
+        message_id: ai_message_id,
+        final_content: accumulatedContent,
+        saved: false,
+        fallback: true,
+        error: 'Used fallback response'
+      })}\n\n`);
+    }
+
+    res.end();
+
+  } catch (error) {
+    console.error('Stream setup error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   createConversation,
   getConversations, 
   getConversation,
   sendMessage,
+  streamAIResponse,
   deleteConversation,
   getAITypes
 };

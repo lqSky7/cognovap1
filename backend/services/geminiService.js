@@ -91,6 +91,72 @@ class GeminiService {
     }
   }
 
+  async generateStreamingResponse(userMessage, aiType, user_id, conversationId) {
+    try {
+      // If Gemini is not available, return fallback as single chunk
+      if (!this.genAI) {
+        const fallback = this.getFallbackResponse(userMessage);
+        return [{ text: () => fallback.content }];
+      }
+
+      // Get context for streaming
+      const JournalEntry = require('../models/journalEntry');
+      const Message = require('../models/message');
+      
+      let journalContext = [];
+      
+      // Get journal context if user allows it (simplified for streaming)
+      const journalEntries = await JournalEntry.find({ 
+        user_id, 
+        accessible_in_chat: true 
+      })
+      .sort({ created_at: -1 })
+      .limit(3);
+
+      if (journalEntries.length > 0) {
+        journalContext = journalEntries;
+      }
+
+      // Get recent conversation history
+      const conversationHistory = await Message.find({ 
+        conversation_id: conversationId 
+      })
+      .sort({ created_at: -1 })
+      .limit(10);
+
+      const systemPrompt = this.buildSystemPrompt(aiType, journalContext);
+      
+      // Build conversation context
+      let prompt = systemPrompt + "\n\nConversation:\n";
+      
+      // Add recent conversation history (last 5 messages)
+      const recentHistory = conversationHistory.slice(-5).reverse();
+      recentHistory.forEach(msg => {
+        const role = msg.sender === 'user' ? 'User' : 'AI';
+        prompt += `${role}: ${msg.content}\n`;
+      });
+      
+      prompt += `User: ${userMessage}\nAI:`;
+
+      // Use generateContentStream for real-time streaming
+      const result = await this.model.generateContentStream(prompt);
+      
+      // Return the async iterable stream
+      return result.stream;
+
+    } catch (error) {
+      console.error('Gemini streaming error:', error);
+      
+      // Return fallback as async iterable
+      const fallback = this.getFallbackResponse(userMessage);
+      return {
+        async *[Symbol.asyncIterator]() {
+          yield { text: () => fallback.content };
+        }
+      };
+    }
+  }
+
   getFallbackResponse(userMessage) {
     const lowerMessage = userMessage.toLowerCase();
     let response = "";
