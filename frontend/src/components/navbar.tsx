@@ -1,44 +1,49 @@
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu"
-import { Dock, DockIcon } from "@/components/magicui/dock"
-import { AnimatedThemeToggler } from "@/components/magicui/animated-theme-toggler"
-import { 
-  MessageCircle, 
-  BookOpen, 
-  BarChart3, 
-  Settings, 
-  User, 
-  LogOut, 
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Dock, DockIcon } from "@/components/magicui/dock";
+import { AnimatedThemeToggler } from "@/components/magicui/animated-theme-toggler";
+import {
+  MessageCircle,
+  BookOpen,
+  BarChart3,
+  Settings,
+  User,
+  LogOut,
   Menu,
   Brain,
-  Sparkles
-} from "lucide-react"
-import type { User as UserType } from "@/services/api"
+  Sparkles,
+} from "lucide-react";
+import type { User as UserType } from "@/services/api";
 
 interface NavbarProps {
-  user?: UserType | null
-  onLogout?: () => void
-  currentView: string
-  onViewChange: (view: string) => void
+  user?: UserType | null;
+  onLogout?: () => void;
+  currentView: string;
+  onViewChange: (view: string) => void;
 }
 
-export function Navbar({ user, onLogout, currentView, onViewChange }: NavbarProps) {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+export function Navbar({
+  user,
+  onLogout,
+  currentView,
+  onViewChange,
+}: NavbarProps) {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems = [
     { id: "chat", label: "Chat", icon: MessageCircle },
     { id: "journal", label: "Journal", icon: BookOpen },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
-  ]
+  ];
 
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
@@ -76,21 +81,34 @@ export function Navbar({ user, onLogout, currentView, onViewChange }: NavbarProp
         {/* Right Side */}
         <div className="flex items-center space-x-2">
           <AnimatedThemeToggler />
-          
+
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                <Button
+                  variant="ghost"
+                  className="relative h-8 w-8 rounded-full"
+                >
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={`https://avatar.vercel.sh/${user.email}`} alt={user.first_name} />
-                    <AvatarFallback>{user.first_name?.[0]}{user.last_name?.[0]}</AvatarFallback>
+                    <AvatarImage
+                      src={`https://avatar.vercel.sh/${user.email}`}
+                      alt={user.first_name}
+                    />
+                    <AvatarFallback>
+                      {user.first_name?.[0]}
+                      {user.last_name?.[0]}
+                    </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuItem className="flex-col items-start">
-                  <div className="font-medium">{user.first_name} {user.last_name}</div>
-                  <div className="text-xs text-muted-foreground">{user.email}</div>
+                  <div className="font-medium">
+                    {user.first_name} {user.last_name}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {user.email}
+                  </div>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => onViewChange("profile")}>
@@ -130,8 +148,8 @@ export function Navbar({ user, onLogout, currentView, onViewChange }: NavbarProp
                     variant={currentView === item.id ? "default" : "ghost"}
                     className="justify-start"
                     onClick={() => {
-                      onViewChange(item.id)
-                      setIsMobileMenuOpen(false)
+                      onViewChange(item.id);
+                      setIsMobileMenuOpen(false);
                     }}
                   >
                     <item.icon className="mr-2 h-4 w-4" />
@@ -144,5 +162,5 @@ export function Navbar({ user, onLogout, currentView, onViewChange }: NavbarProp
         </div>
       </div>
     </nav>
-  )
+  );
 }

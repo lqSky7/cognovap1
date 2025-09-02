@@ -5,7 +5,8 @@ import { motion, useInView } from "framer-motion";
 import type { HTMLMotionProps } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 
-interface TypingAnimationProps extends Omit<HTMLMotionProps<"div">, 'children'> {
+interface TypingAnimationProps
+  extends Omit<HTMLMotionProps<"div">, "children"> {
   children: string;
   className?: string;
   duration?: number;
@@ -70,7 +71,7 @@ export function TypingAnimation({
       ref={elementRef}
       className={cn(
         "text-4xl font-bold leading-[5rem] tracking-[-0.02em]",
-        className,
+        className
       )}
       {...props}
     >

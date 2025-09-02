@@ -46,6 +46,47 @@ export interface GoogleSignInData {
   idToken: string;
 }
 
+// Conversation types
+export interface Conversation {
+  conversation_id: string;
+  user_id: string;
+  ai_type: string;
+  title?: string;
+  created_at: string;
+  updated_at: string;
+  journal_access_enabled: boolean;
+  message_count?: number;
+  last_message?: string;
+  last_message_at?: string;
+}
+
+export interface Message {
+  message_id: string;
+  conversation_id: string;
+  sender: "user" | "ai";
+  content: string;
+  created_at: string;
+  ai_type?: string;
+}
+
+export interface CreateConversationData {
+  ai_type: string;
+  journal_access_enabled?: boolean;
+}
+
+export interface SendMessageData {
+  content: string;
+}
+
+export interface StreamChunk {
+  type: "start" | "chunk" | "complete" | "error";
+  content?: string;
+  accumulated_content?: string;
+  timestamp?: string;
+  saved?: boolean;
+  error?: string;
+}
+
 // Authentication API calls
 export const authAPI = {
   // Register a new user
@@ -104,6 +145,158 @@ export const authAPI = {
     password: string;
   }): Promise<{ message: string }> => {
     const response = await api.delete("/auth/delete-account", { data });
+    return response.data;
+  },
+};
+
+// Conversation API calls
+export const conversationAPI = {
+  // Get available AI types
+  getAITypes: async (): Promise<{ ai_types: any[] }> => {
+    const response = await api.get("/conversations/ai-types");
+    return response.data;
+  },
+
+  // Create new conversation
+  createConversation: async (
+    data: CreateConversationData
+  ): Promise<{ message: string; conversation: Conversation }> => {
+    const response = await api.post("/conversations", data);
+    return response.data;
+  },
+
+  // Get all conversations
+  getConversations: async (
+    page = 1,
+    limit = 10
+  ): Promise<{
+    conversations: Conversation[];
+    total: number;
+    page: number;
+    total_pages: number;
+  }> => {
+    const response = await api.get(
+      `/conversations?page=${page}&limit=${limit}`
+    );
+    return response.data;
+  },
+
+  // Get single conversation with messages
+  getConversation: async (
+    conversationId: string,
+    page = 1,
+    limit = 50
+  ): Promise<{
+    conversation: Conversation;
+    messages: Message[];
+    total: number;
+    page: number;
+    total_pages: number;
+  }> => {
+    const response = await api.get(
+      `/conversations/${conversationId}?page=${page}&limit=${limit}`
+    );
+    return response.data;
+  },
+
+  // Send message (non-streaming)
+  sendMessage: async (
+    conversationId: string,
+    data: SendMessageData
+  ): Promise<{ message: string; streaming: boolean }> => {
+    const response = await api.post(
+      `/conversations/${conversationId}/messages`,
+      data
+    );
+    return response.data;
+  },
+
+  // Create streaming connection
+  streamMessage: async (
+    conversationId: string,
+    message: string,
+    onChunk: (chunk: StreamChunk) => void,
+    signal?: AbortSignal
+  ): Promise<void> => {
+    const response = await fetch(
+      `${API_BASE_URL}/conversations/${conversationId}/stream`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ message }),
+        signal,
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error("No response body");
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete lines
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || ""; // Keep the incomplete line in buffer
+
+        for (const line of lines) {
+          if (line.trim() === "") continue;
+
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              onChunk(data);
+            } catch (error) {
+              console.error("Error parsing SSE data:", error);
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  },
+
+  // Cancel stream
+  cancelStream: async (
+    conversationId: string
+  ): Promise<{ message: string; message_id?: string }> => {
+    const response = await api.delete(
+      `/conversations/${conversationId}/stream`
+    );
+    return response.data;
+  },
+
+  // Get active streams
+  getActiveStreams: async (): Promise<{
+    active_streams: any[];
+    total_active: number;
+  }> => {
+    const response = await api.get("/conversations/streams/active");
+    return response.data;
+  },
+
+  // Delete conversation
+  deleteConversation: async (
+    conversationId: string
+  ): Promise<{ message: string }> => {
+    const response = await api.delete(`/conversations/${conversationId}`);
     return response.data;
   },
 };
