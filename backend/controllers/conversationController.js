@@ -391,7 +391,7 @@ async function generateAndSaveAIResponse(userMessage, conversation, user_id, con
   }
 }
 
-// Store active streams for cancellation
+
 const activeStreams = new Map();
 
 // Stream AI response using Server-Sent Events

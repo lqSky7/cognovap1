@@ -540,12 +540,13 @@ FIREBASE_CLIENT_X509_CERT_URL=your-client-cert-url
    - HTTP status codes indicate error type (400, 401, 403, 404, 500)
 
 4. **Headers**:
+
    - Always set `Content-Type: application/json` for POST/PUT requests
    - No need to manually set Authorization headers (cookies handle this)
 
 5. **Stream Management Testing**:
    - Test `/conversations/streams/active` to check active streams
-   - Use stream cancellation during long responses  
+   - Use stream cancellation during long responses
    - **Important**: Route order matters - `/streams/active` must come before `/:conversationId` routes in Express router
 
 ```bash
@@ -1854,7 +1855,8 @@ _Requires Authentication_
 curl -X DELETE http://localhost:5003/api/conversations/your-conversation-id/stream \
   -b cookies.txt
 ```
-```
+
+````
 
 ---
 
@@ -1881,7 +1883,7 @@ _Requires Authentication_
   ],
   "total_active": 1
 }
-```
+````
 
 **cURL Example:**
 
@@ -1889,7 +1891,8 @@ _Requires Authentication_
 curl -X GET http://localhost:5003/api/conversations/streams/active \
   -b cookies.txt
 ```
-```
+
+````
 
 ---
 
@@ -1904,7 +1907,7 @@ _Requires Authentication_
 {
   "message": "Conversation deleted successfully"
 }
-```
+````
 
 ---
 
