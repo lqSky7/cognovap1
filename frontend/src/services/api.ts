@@ -82,6 +82,8 @@ export interface StreamChunk {
   type: "start" | "chunk" | "complete" | "error";
   content?: string;
   accumulated_content?: string;
+  final_content?: string;
+  message_id?: string;
   timestamp?: string;
   saved?: boolean;
   error?: string;
@@ -297,6 +299,135 @@ export const conversationAPI = {
     conversationId: string
   ): Promise<{ message: string }> => {
     const response = await api.delete(`/conversations/${conversationId}`);
+    return response.data;
+  },
+
+  // Update conversation
+  updateConversation: async (
+    conversationId: string,
+    data: { title: string }
+  ): Promise<{ message: string; conversation: Conversation }> => {
+    const response = await api.put(`/conversations/${conversationId}`, data);
+    return response.data;
+  },
+};
+
+// Journal types
+export interface JournalEntry {
+  entry_id: string;
+  user_id: string;
+  title?: string;
+  content: string;
+  mood_score?: number;
+  tags: string[];
+  entry_date: string;
+  accessible_in_chat: boolean;
+  created_at: string;
+}
+
+export interface CreateJournalEntryData {
+  title?: string;
+  content: string;
+  mood_score?: number;
+  tags?: string[];
+  entry_date?: string;
+  accessible_in_chat?: boolean;
+}
+
+export interface UpdateJournalEntryData {
+  title?: string;
+  content?: string;
+  mood_score?: number;
+  tags?: string[];
+  accessible_in_chat?: boolean;
+}
+
+export interface JournalEntriesResponse {
+  entries: JournalEntry[];
+  pagination: {
+    current_page: number;
+    total_pages: number;
+    total_entries: number;
+    has_next: boolean;
+    has_prev: boolean;
+  };
+}
+
+// Journal API calls
+export const journalAPI = {
+  // Create new journal entry
+  createEntry: async (
+    data: CreateJournalEntryData
+  ): Promise<{
+    message: string;
+    entry: JournalEntry;
+  }> => {
+    const response = await api.post("/journal", data);
+    return response.data;
+  },
+
+  // Get all journal entries
+  getEntries: async (params?: {
+    page?: number;
+    limit?: number;
+    mood_min?: number;
+    mood_max?: number;
+    tag?: string;
+    from_date?: string;
+    to_date?: string;
+  }): Promise<JournalEntriesResponse> => {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.mood_min)
+      queryParams.append("mood_min", params.mood_min.toString());
+    if (params?.mood_max)
+      queryParams.append("mood_max", params.mood_max.toString());
+    if (params?.tag) queryParams.append("tag", params.tag);
+    if (params?.from_date) queryParams.append("from_date", params.from_date);
+    if (params?.to_date) queryParams.append("to_date", params.to_date);
+
+    const response = await api.get(`/journal?${queryParams.toString()}`);
+    return response.data;
+  },
+
+  // Get single journal entry
+  getEntry: async (entryId: string): Promise<{ entry: JournalEntry }> => {
+    const response = await api.get(`/journal/${entryId}`);
+    return response.data;
+  },
+
+  // Update journal entry
+  updateEntry: async (
+    entryId: string,
+    data: UpdateJournalEntryData
+  ): Promise<{
+    message: string;
+    entry: JournalEntry;
+  }> => {
+    const response = await api.put(`/journal/${entryId}`, data);
+    return response.data;
+  },
+
+  // Delete journal entry
+  deleteEntry: async (entryId: string): Promise<{ message: string }> => {
+    const response = await api.delete(`/journal/${entryId}`);
+    return response.data;
+  },
+
+  // Get mood statistics
+  getMoodStats: async (
+    days?: number
+  ): Promise<{
+    period_days: number;
+    average_mood: number | null;
+    min_mood: number | null;
+    max_mood: number | null;
+    entries_count: number;
+    mood_entries: Array<{ date: string; mood: number }>;
+  }> => {
+    const queryParams = days ? `?days=${days}` : "";
+    const response = await api.get(`/journal/mood-stats${queryParams}`);
     return response.data;
   },
 };

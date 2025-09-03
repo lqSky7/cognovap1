@@ -1747,6 +1747,8 @@ _Requires Authentication_
 _Requires Authentication_
 _Returns Server-Sent Events (SSE)_
 
+**Description:** This endpoint saves the user message immediately to the database and then streams the AI response in real-time. Both user and AI messages are persisted.
+
 **Request Body:**
 
 ```json

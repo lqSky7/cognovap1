@@ -17,6 +17,7 @@ router.get('/streams/active', conversationController.getActiveStreams);
 router.post('/', conversationController.createConversation);
 router.get('/', conversationController.getConversations);
 router.get('/:conversationId', conversationController.getConversation);
+router.put('/:conversationId', conversationController.updateConversation);
 router.delete('/:conversationId', conversationController.deleteConversation);
 
 // Messages

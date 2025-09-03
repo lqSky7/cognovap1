@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { TypingAnimation } from "@/components/magicui/typing-animation";
+// Removed TypingAnimation import; using custom char-by-char animation
 import {
   Send,
   User,
@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { conversationAPI, type StreamChunk } from "@/services/api";
+import { ChatSidebar } from "./chat-sidebar";
 
 interface Message {
   id: string;
@@ -86,6 +87,9 @@ export function ChatInterface({ user }: ChatInterfaceProps) {
     null
   );
   const [conversationId, setConversationId] = useState<string | null>(null);
+  // state for streaming animation
+  const [streamingText, setStreamingText] = useState("");
+  const [visibleLength, setVisibleLength] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -115,7 +119,7 @@ export function ChatInterface({ user }: ChatInterfaceProps) {
     const initializeConversation = async () => {
       const newConversationId = await createConversation(selectedAI.id);
       setConversationId(newConversationId);
-      
+
       const welcomeMessage: Message = {
         id: Date.now().toString(),
         content: `Hello! I'm your ${selectedAI.name}. ${selectedAI.description}. How can I help you today?`,
@@ -129,7 +133,16 @@ export function ChatInterface({ user }: ChatInterfaceProps) {
     initializeConversation();
   }, [selectedAI]);
 
+  // reset streaming state: clear queue and interval
+  const resetStreaming = () => {
+    setStreamingText("");
+    setVisibleLength(0);
+  };
+
   const handleSendMessage = async () => {
+    // Before sending, reset any previous streaming
+    // Before sending, reset previous streaming text
+    setStreamingText("");
     if (!inputValue.trim() || isLoading || !conversationId) return;
 
     const userMessage: Message = {
@@ -139,6 +152,7 @@ export function ChatInterface({ user }: ChatInterfaceProps) {
       timestamp: new Date(),
     };
 
+    console.log("📤 Sending user message:", userMessage);
     setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
     setIsLoading(true);
@@ -153,66 +167,41 @@ export function ChatInterface({ user }: ChatInterfaceProps) {
       timestamp: new Date(),
       aiType: selectedAI.id,
     };
+    console.log("🤖 Created AI message placeholder:", aiMessage);
     setMessages((prev) => [...prev, aiMessage]);
     setStreamingMessageId(aiMessageId);
 
     try {
-      // Create abort controller for cancellation
       abortControllerRef.current = new AbortController();
-
-      // Use real streaming API
       await conversationAPI.streamMessage(
-        conversationId,
+        conversationId!,
         inputValue,
         (chunk: StreamChunk) => {
           if (chunk.type === "chunk" && chunk.accumulated_content) {
-            // Update the AI message with accumulated content
+            setStreamingText(chunk.accumulated_content);
+          } else if (chunk.type === "complete") {
+            const finalContent =
+              chunk.final_content || chunk.accumulated_content || streamingText;
+            setStreamingText(finalContent);
+            // On completion, finalize message and reset states
             setMessages((prev) =>
               prev.map((msg) =>
-                msg.id === aiMessageId 
-                  ? { ...msg, content: chunk.accumulated_content || "" }
-                  : msg
+                msg.id === aiMessageId ? { ...msg, content: finalContent } : msg
               )
             );
-          } else if (chunk.type === "complete") {
-            // Stream completed
             setIsStreaming(false);
             setIsLoading(false);
             setStreamingMessageId(null);
-          } else if (chunk.type === "error") {
-            throw new Error(chunk.error || "Streaming error");
           }
         },
         abortControllerRef.current.signal
       );
-    } catch (error: any) {
-      if (error.name === "AbortError") {
-        // Handle cancellation
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === aiMessageId
-              ? { ...msg, content: "Response cancelled." }
-              : msg
-          )
-        );
-      } else {
-        console.error("Chat error:", error);
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === aiMessageId
-              ? {
-                  ...msg,
-                  content: "Sorry, I encountered an error. Please try again.",
-                }
-              : msg
-          )
-        );
-      }
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error("Stream error", error);
+      resetStreaming();
       setIsStreaming(false);
+      setIsLoading(false);
       setStreamingMessageId(null);
-      abortControllerRef.current = null;
     }
   };
 
@@ -220,7 +209,12 @@ export function ChatInterface({ user }: ChatInterfaceProps) {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    
+
+    // Reset streaming states
+    setIsStreaming(false);
+    setIsLoading(false);
+    setStreamingMessageId(null);
+    setStreamingText("");
     if (conversationId) {
       try {
         await conversationAPI.cancelStream(conversationId);
@@ -294,65 +288,78 @@ export function ChatInterface({ user }: ChatInterfaceProps) {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${
-              message.sender === "user" ? "justify-end" : "justify-start"
-            }`}
-          >
+        {messages.map((message) => {
+          console.log(`🎨 Rendering message:`, {
+            id: message.id,
+            sender: message.sender,
+            content: message.content?.substring(0, 30) + "...",
+            isStreamingMessage: message.id === streamingMessageId,
+            isStreaming,
+            streamingText: streamingText?.substring(0, 30) + "...",
+          });
+
+          return (
             <div
-              className={`flex items-start space-x-2 max-w-[80%] ${
-                message.sender === "user"
-                  ? "flex-row-reverse space-x-reverse"
-                  : ""
+              key={message.id}
+              className={`flex ${
+                message.sender === "user" ? "justify-end" : "justify-start"
               }`}
             >
-              <Avatar className="w-8 h-8">
-                {message.sender === "user" ? (
-                  <>
-                    <AvatarImage
-                      src={`https://avatar.vercel.sh/${user.email}`}
-                    />
-                    <AvatarFallback>
-                      <User className="w-4 h-4" />
-                    </AvatarFallback>
-                  </>
-                ) : (
-                  <AvatarFallback className={selectedAI.color}>
-                    <selectedAI.icon className="w-4 h-4 text-white" />
-                  </AvatarFallback>
-                )}
-              </Avatar>
-
-              <Card
-                className={`p-3 ${
+              <div
+                className={`flex items-start space-x-2 max-w-[80%] ${
                   message.sender === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted"
+                    ? "flex-row-reverse space-x-reverse"
+                    : ""
                 }`}
               >
-                {message.sender === "ai" &&
-                message.id === streamingMessageId &&
-                isStreaming ? (
-                  <TypingAnimation className="text-sm">
-                    {message.content || "Thinking..."}
-                  </TypingAnimation>
+                <Avatar className="w-8 h-8">
+                  {message.sender === "user" ? (
+                    <>
+                      <AvatarImage
+                        src={`https://avatar.vercel.sh/${user.email}`}
+                      />
+                      <AvatarFallback>
+                        <User className="w-4 h-4" />
+                      </AvatarFallback>
+                    </>
+                  ) : (
+                    <AvatarFallback className={selectedAI.color}>
+                      <selectedAI.icon className="w-4 h-4 text-white" />
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+
+                {message.sender === "user" ? (
+                  <Card className="p-3 bg-primary text-primary-foreground">
+                    <div className="text-sm">
+                      <ReactMarkdown>{message.content || ""}</ReactMarkdown>
+                    </div>
+                    <div className="text-xs opacity-70 mt-1">
+                      {message.timestamp.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
+                  </Card>
                 ) : (
-                  <div className="text-sm">
-                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                  <div className="flex flex-col space-y-1">
+                    <div className="text-sm text-foreground">
+                      {message.id === streamingMessageId && isStreaming
+                        ? streamingText.slice(0, visibleLength)
+                        : message.content}
+                    </div>
+                    <div className="text-xs opacity-70">
+                      {message.timestamp.toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
                   </div>
                 )}
-                <div className="text-xs opacity-70 mt-1">
-                  {message.timestamp.toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </div>
-              </Card>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         <div ref={messagesEndRef} />
       </div>
 

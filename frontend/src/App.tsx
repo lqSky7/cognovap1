@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { LoginForm } from "@/components/login-form";
 import { RegisterForm } from "@/components/register-form";
-import { Navbar } from "@/components/navbar";
-import { ChatInterface } from "@/components/chat-interface";
-import { Journal } from "@/components/journal";
+import { NavigationSidebar } from "@/components/navigation-sidebar";
+import { ChatInterface } from "@/components/chat-interface-fullscreen";
+import { JournalPage } from "@/components/journal-page";
 import { Analytics } from "@/components/analytics";
 import { authAPI, type User } from "@/services/api";
 
@@ -100,19 +100,19 @@ function Dashboard({
   onViewChange: (view: AppView) => void;
 }) {
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar
+    <div className="flex h-screen bg-background">
+      <NavigationSidebar
         user={user}
         onLogout={onLogout}
         currentView={currentView}
         onViewChange={(view) => onViewChange(view as AppView)}
       />
-      <main className="pt-4 pb-8">
+      <main className="flex-1 overflow-hidden">
         {currentView === "chat" && <ChatInterface user={user} />}
-        {currentView === "journal" && <Journal user={user} />}
+        {currentView === "journal" && <JournalPage user={user} />}
         {currentView === "analytics" && <Analytics user={user} />}
         {currentView === "profile" && (
-          <div className="max-w-4xl mx-auto p-6">
+          <div className="max-w-4xl mx-auto p-6 h-full overflow-y-auto">
             <h1 className="text-3xl font-bold mb-6">Profile Settings</h1>
             <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border">
               <div className="space-y-4">
@@ -131,7 +131,7 @@ function Dashboard({
           </div>
         )}
         {currentView === "settings" && (
-          <div className="max-w-4xl mx-auto p-6">
+          <div className="max-w-4xl mx-auto p-6 h-full overflow-y-auto">
             <h1 className="text-3xl font-bold mb-6">Settings</h1>
             <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border">
               <p className="text-muted-foreground">

@@ -61,19 +61,8 @@ const createConversation = async (req, res) => {
 
     await conversation.save();
 
-    // Create initial greeting message from AI
-    const greeting_message_id = uuidv4();
-    const greeting = `Hello! I'm your ${AI_TYPES[ai_type].name}. ${AI_TYPES[ai_type].description}. How are you feeling today? Feel free to share what's on your mind.`;
-    
-    const greetingMessage = new Message({
-      message_id: greeting_message_id,
-      conversation_id,
-      user_id,
-      sender: 'ai',
-      content: greeting
-    });
-
-    await greetingMessage.save();
+    // Don't create initial greeting message automatically
+    // Let the conversation start empty and create greeting only when user sends first message
 
     res.status(201).json({
       message: 'Conversation created successfully',
@@ -81,8 +70,7 @@ const createConversation = async (req, res) => {
         ...conversation.toObject(),
         ai_type,
         ai_info: AI_TYPES[ai_type]
-      },
-      initial_message: greetingMessage
+      }
     });
   } catch (error) {
     console.error('Create conversation error:', error);
@@ -186,6 +174,8 @@ const sendMessage = async (req, res) => {
     const { content } = req.body;
     const user_id = req.user.user_id;
 
+    console.log('SendMessage called:', { conversationId, user_id, content });
+
     if (!content) {
       return res.status(400).json({ message: 'Message content is required' });
     }
@@ -199,8 +189,17 @@ const sendMessage = async (req, res) => {
       return res.status(404).json({ message: 'Conversation not found' });
     }
 
+    console.log('Found conversation:', conversation.conversation_id);
+
+    // Check if this is the first message in the conversation
+    const messageCount = await Message.countDocuments({ conversation_id: conversationId });
+    const isFirstMessage = messageCount === 0;
+
+    console.log('Message count in conversation:', messageCount, 'Is first message:', isFirstMessage);
+
     // Create user message first
     const message_id = uuidv4();
+    console.log('Creating user message with ID:', message_id);
     const userMessage = new Message({
       message_id,
       conversation_id: conversationId,
@@ -209,11 +208,32 @@ const sendMessage = async (req, res) => {
       content
     });
 
+    console.log('Saving user message:', userMessage);
     await userMessage.save();
+    console.log('User message saved successfully');
 
     // Update conversation last message time
     conversation.last_message_at = new Date();
     await conversation.save();
+    console.log('Conversation updated successfully');
+
+    // If this is the first message, create a greeting from AI first
+    if (isFirstMessage) {
+      const aiType = conversation.ai_therapist_id || 'supportive';
+      const greeting_message_id = uuidv4();
+      const greeting = `Hello! I'm your ${AI_TYPES[aiType].name}. ${AI_TYPES[aiType].description}. How are you feeling today?`;
+      
+      const greetingMessage = new Message({
+        message_id: greeting_message_id,
+        conversation_id: conversationId,
+        user_id,
+        sender: 'ai',
+        content: greeting
+      });
+
+      await greetingMessage.save();
+      console.log('Greeting message saved');
+    }
 
     // Check for crisis indicators first
     const isCrisis = geminiService.detectCrisis(content);
@@ -253,7 +273,7 @@ const sendMessage = async (req, res) => {
 
   } catch (error) {
     console.error('Send message error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
@@ -278,6 +298,33 @@ const deleteConversation = async (req, res) => {
     res.json({ message: 'Conversation deleted successfully' });
   } catch (error) {
     console.error('Delete conversation error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Update conversation
+const updateConversation = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { title } = req.body;
+    const user_id = req.user.user_id;
+
+    const conversation = await Conversation.findOneAndUpdate(
+      { conversation_id: conversationId, user_id },
+      { title },
+      { new: true }
+    );
+    
+    if (!conversation) {
+      return res.status(404).json({ message: 'Conversation not found' });
+    }
+
+    res.json({ 
+      message: 'Conversation updated successfully',
+      conversation 
+    });
+  } catch (error) {
+    console.error('Update conversation error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -401,6 +448,8 @@ const streamAIResponse = async (req, res) => {
     const { message: userMessage } = req.body;
     const user_id = req.user.user_id;
 
+    console.log('StreamAIResponse called:', { conversationId, user_id, userMessage });
+
     if (!userMessage) {
       return res.status(400).json({ message: 'Message is required' });
     }
@@ -413,6 +462,26 @@ const streamAIResponse = async (req, res) => {
     if (!conversation) {
       return res.status(404).json({ message: 'Conversation not found' });
     }
+
+    // SAVE USER MESSAGE FIRST - This was missing!
+    const user_message_id = uuidv4();
+    console.log('Creating user message in stream with ID:', user_message_id);
+    
+    const userMessageDoc = new Message({
+      message_id: user_message_id,
+      conversation_id: conversationId,
+      user_id,
+      sender: 'user',
+      content: userMessage
+    });
+
+    await userMessageDoc.save();
+    console.log('User message saved in stream successfully');
+
+    // Update conversation last message time
+    conversation.last_message_at = new Date();
+    await conversation.save();
+    console.log('Conversation updated in stream successfully');
 
     const ai_message_id = uuidv4();
     
@@ -429,7 +498,9 @@ const streamAIResponse = async (req, res) => {
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive'
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no', // Disable nginx buffering
+      'Content-Encoding': 'identity' // Disable compression
     });
 
     let accumulatedContent = '';
@@ -486,7 +557,11 @@ const streamAIResponse = async (req, res) => {
       );
 
       // Stream the response chunks
+      let chunkCount = 0;
       for await (const chunk of streamingResponse) {
+        chunkCount++;
+        console.log(`Processing chunk ${chunkCount}`);
+        
         // Check if stream was cancelled
         const currentStreamInfo = activeStreams.get(streamKey);
         if (!currentStreamInfo || currentStreamInfo.cancelled) {
@@ -496,6 +571,7 @@ const streamAIResponse = async (req, res) => {
 
         try {
           const text = chunk.text();
+          console.log(`Chunk ${chunkCount} text length:`, text?.length || 0);
           if (text) {
             accumulatedContent += text;
             
@@ -505,6 +581,9 @@ const streamAIResponse = async (req, res) => {
               content: text,
               accumulated_content: accumulatedContent
             })}\n\n`);
+            
+            // Force flush the response to ensure immediate delivery
+            if (res.flush) res.flush();
           }
         } catch (chunkError) {
           console.error('Error processing chunk:', chunkError);
@@ -660,5 +739,6 @@ module.exports = {
   cancelStream,
   getActiveStreams,
   deleteConversation,
+  updateConversation,
   getAITypes
 };
