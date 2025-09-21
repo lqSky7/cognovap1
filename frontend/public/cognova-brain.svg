@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <linearGradient id="brainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF7900;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF9933;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Brain shape (4x larger) -->
+  <path d="M100 140 Q80 100 120 80 Q160 60 200 80 Q240 60 280 80 Q320 100 300 140 Q320 180 300 220 Q320 260 280 280 Q240 300 200 280 Q160 300 120 280 Q80 260 100 220 Q80 180 100 140 Z" 
+        fill="url(#brainGradient)" stroke="#FF7900" stroke-width="8"/>
+  
+  <!-- Neural connections (4x larger) -->
+  <circle cx="140" cy="140" r="12" fill="#FFB366" opacity="0.8"/>
+  <circle cx="200" cy="120" r="8" fill="#FFB366" opacity="0.8"/>
+  <circle cx="260" cy="140" r="12" fill="#FFB366" opacity="0.8"/>
+  <circle cx="160" cy="200" r="8" fill="#FFB366" opacity="0.8"/>
+  <circle cx="240" cy="200" r="8" fill="#FFB366" opacity="0.8"/>
+  <circle cx="200" cy="240" r="12" fill="#FFB366" opacity="0.8"/>
+  
+  <!-- Connection lines (4x larger) -->
+  <line x1="140" y1="140" x2="200" y2="120" stroke="#FFB366" stroke-width="4" opacity="0.6"/>
+  <line x1="200" y1="120" x2="260" y2="140" stroke="#FFB366" stroke-width="4" opacity="0.6"/>
+  <line x1="140" y1="140" x2="160" y2="200" stroke="#FFB366" stroke-width="4" opacity="0.6"/>
+  <line x1="260" y1="140" x2="240" y2="200" stroke="#FFB366" stroke-width="4" opacity="0.6"/>
+  <line x1="160" y1="200" x2="200" y2="240" stroke="#FFB366" stroke-width="4" opacity="0.6"/>
+  <line x1="240" y1="200" x2="200" y2="240" stroke="#FFB366" stroke-width="4" opacity="0.6"/>
+</svg>
