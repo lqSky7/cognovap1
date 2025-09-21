@@ -6,6 +6,7 @@ import { ChatInterface } from "@/components/chat-interface-fullscreen";
 import { JournalPage } from "@/components/journal-page";
 import { Analytics } from "@/components/analytics";
 import { authAPI, type User } from "@/services/api";
+import LayoutEnhanced from "./enhanced/LayoutEnhanced.js";
 
 type AppView =
   | "login"
@@ -99,6 +100,11 @@ function Dashboard({
   currentView: AppView;
   onViewChange: (view: AppView) => void;
 }) {
+  // Use the enhanced layout for chat view, traditional layout for others
+  if (currentView === "chat") {
+    return <LayoutEnhanced user={user} />;
+  }
+
   return (
     <div className="flex h-screen bg-background">
       <NavigationSidebar
@@ -108,7 +114,6 @@ function Dashboard({
         onViewChange={(view) => onViewChange(view as AppView)}
       />
       <main className="flex-1 overflow-hidden">
-        {currentView === "chat" && <ChatInterface user={user} />}
         {currentView === "journal" && <JournalPage user={user} />}
         {currentView === "analytics" && <Analytics user={user} />}
         {currentView === "profile" && (
