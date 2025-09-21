@@ -7,6 +7,7 @@ import { JournalPage } from "@/components/journal-page";
 import { Analytics } from "@/components/analytics";
 import { authAPI, type User } from "@/services/api";
 import LayoutEnhanced from "./enhanced/LayoutEnhanced.js";
+import { ThemeProvider } from "./contexts/ThemeContext.js";
 
 type AppView =
   | "login"
@@ -163,8 +164,8 @@ function App() {
         setCurrentUser(response.user);
         setCurrentView("chat");
       } catch (error) {
-        // User not logged in
-        setCurrentView("login");
+        // User not logged in - show enhanced layout as guest
+        setCurrentView("chat");
       } finally {
         setIsLoading(false);
       }
@@ -190,7 +191,7 @@ function App() {
       console.error("Logout error:", error);
     } finally {
       setCurrentUser(null);
-      setCurrentView("login");
+      setCurrentView("chat");
     }
   };
 
@@ -200,56 +201,76 @@ function App() {
   // Show loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
+      <ThemeProvider>
+        <div className="min-h-screen flex items-center justify-center bg-oled text-white">
+          <div className="text-center">
+            <div className="w-8 h-8 border-4 border-[#FF7900] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-muted-text">Loading...</p>
+          </div>
         </div>
-      </div>
+      </ThemeProvider>
     );
   }
 
-  // Show dashboard if user is logged in
-  if (currentUser) {
+  // Show dashboard if user is logged in or enhanced layout for guests
+  if (currentView === "chat") {
     return (
-      <Dashboard
-        user={currentUser}
-        onLogout={handleLogout}
-        currentView={currentView}
-        onViewChange={setCurrentView}
-      />
+      <ThemeProvider>
+        <LayoutEnhanced user={currentUser || undefined} />
+      </ThemeProvider>
     );
   }
 
-  // Show auth forms or landing page
+  if (currentUser && (currentView === "journal" || currentView === "analytics" || currentView === "profile" || currentView === "settings")) {
+    return (
+      <ThemeProvider>
+        <Dashboard
+          user={currentUser}
+          onLogout={handleLogout}
+          currentView={currentView}
+          onViewChange={setCurrentView}
+        />
+      </ThemeProvider>
+    );
+  }
+
+  // Show auth forms
   if (currentView === "login") {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center p-4">
-        <div className="max-w-md w-full">
-          <LoginForm
-            onLoginSuccess={handleLoginSuccess}
-            onSwitchToRegister={switchToRegister}
-          />
+      <ThemeProvider>
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center p-4">
+          <div className="max-w-md w-full">
+            <LoginForm
+              onLoginSuccess={handleLoginSuccess}
+              onSwitchToRegister={switchToRegister}
+            />
+          </div>
         </div>
-      </div>
+      </ThemeProvider>
     );
   }
 
   if (currentView === "register") {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center p-4">
-        <div className="max-w-md w-full">
-          <RegisterForm
-            onRegisterSuccess={handleRegisterSuccess}
-            onSwitchToLogin={switchToLogin}
-          />
+      <ThemeProvider>
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center p-4">
+          <div className="max-w-md w-full">
+            <RegisterForm
+              onRegisterSuccess={handleRegisterSuccess}
+              onSwitchToLogin={switchToLogin}
+            />
+          </div>
         </div>
-      </div>
+      </ThemeProvider>
     );
   }
 
-  // Default to landing page
-  return <LandingPage onViewChange={setCurrentView} />;
+  // Default to enhanced layout
+  return (
+    <ThemeProvider>
+      <LayoutEnhanced user={currentUser || undefined} />
+    </ThemeProvider>
+  );
 }
 
 export default App;
