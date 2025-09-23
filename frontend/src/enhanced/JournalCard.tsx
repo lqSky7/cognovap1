@@ -1,4 +1,4 @@
-import React from "react";
+// React import removed - not needed with new JSX transform
 import TooltipRadix from "./TooltipRadix.js";
 import type { JournalEntry } from "../data/mock.js";
 

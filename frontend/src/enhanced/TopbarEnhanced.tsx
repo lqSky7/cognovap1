@@ -1,18 +1,16 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import TooltipRadix from "./TooltipRadix.js";
 import { useTheme } from "../contexts/ThemeContext.js";
 import ProfileModal from "./ProfileModal";
 import NotificationsPanel from "./NotificationsPanel";
 
 export default function TopbarEnhanced(){
-  const [showTour, setShowTour] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   const handleShowTour = () => {
     localStorage.removeItem('cognova_onboard_shown');
-    setShowTour(true);
     // Trigger tour restart by forcing a page reload or state update
     window.location.reload();
   };

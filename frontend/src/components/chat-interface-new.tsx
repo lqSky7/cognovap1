@@ -1,10 +1,8 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,17 +20,10 @@ import {
   Lightbulb,
   Palette,
   BookOpen,
-  Search,
-  MessageSquare,
-  Plus,
-  ArrowLeft,
-  Clock,
-  Trash2,
-  Edit3,
-  MoreHorizontal,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import { conversationAPI, type StreamChunk, type Conversation } from "@/services/api";
+import { conversationAPI, type StreamChunk } from "@/services/api";
+import { ChatSidebar } from "./chat-sidebar";
 
 interface Message {
   id: string;
@@ -40,14 +31,6 @@ interface Message {
   sender: "user" | "ai";
   timestamp: Date;
   aiType?: string;
-}
-
-interface ConversationWithLastMessage extends Omit<Conversation, "last_message"> {
-  last_message?: {
-    content: string;
-    sender: "user" | "ai";
-    created_at: string;
-  };
 }
 
 interface ChatInterfaceProps {
