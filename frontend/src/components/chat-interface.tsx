@@ -25,7 +25,6 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { conversationAPI, type StreamChunk } from "@/services/api";
-import { ChatSidebar } from "./chat-sidebar";
 
 interface Message {
   id: string;

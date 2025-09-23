@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { LoginForm } from "@/components/login-form";
 import { RegisterForm } from "@/components/register-form";
 import { NavigationSidebar } from "@/components/navigation-sidebar";
-import { ChatInterface } from "@/components/chat-interface-fullscreen";
 import { JournalPage } from "@/components/journal-page";
 import { Analytics } from "@/components/analytics";
 import { authAPI, type User } from "@/services/api";
@@ -17,78 +16,6 @@ type AppView =
   | "analytics"
   | "profile"
   | "settings";
-
-function LandingPage({
-  onViewChange,
-}: {
-  onViewChange: (view: AppView) => void;
-}) {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 dark:from-gray-900 dark:via-purple-900 dark:to-blue-900">
-      <div className="container mx-auto px-4 py-20">
-        <div className="text-center max-w-4xl mx-auto">
-          <h1 className="text-6xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-pink-600 bg-clip-text text-transparent mb-6">
-            Welcome to Cognova
-          </h1>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Your personal AI-powered mental health companion. Chat with
-            specialized AI therapists, track your mood, and maintain a
-            meaningful journal - all in one beautiful, secure platform.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button
-              onClick={() => onViewChange("register")}
-              className="px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium hover:shadow-lg transition-all duration-200"
-            >
-              Get Started Free
-            </button>
-            <button
-              onClick={() => onViewChange("login")}
-              className="px-8 py-3 border border-gray-300 text-gray-700 dark:text-gray-300 dark:border-gray-600 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200"
-            >
-              Sign In
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          <div className="text-center p-6 bg-white/50 dark:bg-gray-800/50 backdrop-blur rounded-xl border border-white/20">
-            <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center mx-auto mb-4">
-              🤖
-            </div>
-            <h3 className="text-xl font-semibold mb-2">AI Therapy Chat</h3>
-            <p className="text-muted-foreground">
-              Choose from 5 specialized AI therapists, each with unique
-              approaches to mental health support.
-            </p>
-          </div>
-
-          <div className="text-center p-6 bg-white/50 dark:bg-gray-800/50 backdrop-blur rounded-xl border border-white/20">
-            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center mx-auto mb-4">
-              📝
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Smart Journaling</h3>
-            <p className="text-muted-foreground">
-              Track your thoughts, mood, and progress with an AI-integrated
-              journaling system.
-            </p>
-          </div>
-
-          <div className="text-center p-6 bg-white/50 dark:bg-gray-800/50 backdrop-blur rounded-xl border border-white/20">
-            <div className="w-12 h-12 bg-pink-100 dark:bg-pink-900 rounded-lg flex items-center justify-center mx-auto mb-4">
-              📊
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Progress Analytics</h3>
-            <p className="text-muted-foreground">
-              Visualize your mental health journey with detailed insights and
-              achievements.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function Dashboard({
   user,
@@ -238,7 +165,7 @@ function App() {
   if (currentView === "login") {
     return (
       <ThemeProvider>
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center p-4">
+        <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col items-center justify-center p-4">
           <div className="max-w-md w-full">
             <LoginForm
               onLoginSuccess={handleLoginSuccess}
@@ -253,7 +180,7 @@ function App() {
   if (currentView === "register") {
     return (
       <ThemeProvider>
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center p-4">
+        <div className="min-h-screen bg-white dark:bg-gray-900 flex flex-col items-center justify-center p-4">
           <div className="max-w-md w-full">
             <RegisterForm
               onRegisterSuccess={handleRegisterSuccess}

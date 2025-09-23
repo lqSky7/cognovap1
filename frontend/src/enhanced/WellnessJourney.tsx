@@ -1,4 +1,4 @@
-import React from 'react';
+// React import removed - not needed with new JSX transform
 import { useTheme } from '../contexts/ThemeContext.js';
 import type { User } from '../services/api';
 
@@ -41,7 +41,7 @@ export default function WellnessJourney({ user }: WellnessJourneyProps) {
         <span className="text-xs px-2 py-1 bg-[#FF7900] text-white rounded">Demo</span>
       </h3>
       
-      <div className="space-y-3 max-h-[520px] overflow-y-auto pr-2">
+      <div className="space-y-3 h-[calc(100vh-240px)] overflow-y-auto pr-2">
         {/* Weekly Insight */}
         <div className={`p-3 rounded-lg border ${
           theme === 'dark'
@@ -147,6 +147,15 @@ export default function WellnessJourney({ user }: WellnessJourneyProps) {
               </div>
             ))}
           </div>
+        </div>
+        
+        {/* Demo message */}
+        <div className={`p-3 rounded-lg border text-center text-xs ${
+          theme === 'dark'
+            ? 'border-[rgba(255,121,0,0.2)] bg-[rgba(255,121,0,0.05)] text-gray-400'
+            : 'border-orange-200 bg-orange-50 text-gray-600'
+        }`}>
+          🌟 Demo wellness data - Sign up to save your own!
         </div>
       </div>
     </div>

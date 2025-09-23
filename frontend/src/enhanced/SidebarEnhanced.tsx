@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { conversations, user, type Conversation } from "../data/mock.js";
 import TooltipRadix from "./TooltipRadix.js";
 import ConversationModal from "./ConversationModal.js";
@@ -82,7 +82,6 @@ export default function SidebarEnhanced({ currentUser, collapsed = false, onTogg
                   {currentUser?.username || user?.username || "Guest"}
                   {!currentUser && <span className="ml-2 text-xs px-2 py-1 bg-[#FF7900] text-white rounded">Demo</span>}
                 </div>
-                <div className="text-xs text-muted-text">{currentUser?.email || user?.email}</div>
               </div>
             </div>
 

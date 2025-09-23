@@ -1,4 +1,4 @@
-import React from "react";
+// React import removed - not needed with new JSX transform
 import { ChatInterface } from "../components/chat-interface-fullscreen";
 import { useTheme } from "../contexts/ThemeContext.js";
 import type { User } from "../services/api";

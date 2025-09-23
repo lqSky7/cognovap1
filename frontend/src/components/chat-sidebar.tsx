@@ -293,7 +293,7 @@ function ChatSidebarContent({
                               onClick={(e) => e.stopPropagation()}
                             />
                           ) : (
-                            <h3 className="text-sm font-medium truncate">
+                            <h3 className="text-sm font-medium truncate whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]">
                               {conversation.title ||
                                 `Chat with ${conversation.ai_type || "AI"}`}
                             </h3>
@@ -315,6 +315,9 @@ function ChatSidebarContent({
                                 conversation.last_message_at ||
                                   conversation.created_at
                               )}
+                            </span>
+                            <span className="text-xs text-muted-foreground ml-auto">
+                              {conversation.message_count || 0} messages
                             </span>
                           </div>
                         </div>
